@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include "matrix.c"
 #include "util.c"
+#include <time.h>
 
-#define DEBUG 1
+#define DEBUG 0
+#define GRADIENT_PRINT 0
 
 typedef struct Model
 {
@@ -45,26 +47,31 @@ double* forward_pass(Model* model, double input[model->layers[0]])
 {
     
     Matrix* frontier = arr_to_mat(model->layers[0], input, 1);
+    mat_normalize(frontier);
+    mat_map(frontier, sigmoid, 1);
 
     for(int i = 0; i < model->num_layers; i++)
     {
-        if (DEBUG)
-        {
-            printf("--------Layer %d---------\n", i);
-            printf("Frontier (%d, %d)\n", frontier->rows, frontier->columns); 
-            mat_print(frontier);
-
-            printf("\nWeights (%d, %d)\n", model->weights[i]->rows, model->weights[i]->columns);
-            mat_print(model->weights[i]);
-
-            printf("\nBias (%d, %d)\n", model->bias[i]->rows, model->bias[i]->columns);
-            mat_print(model->bias[i]);
-            printf("\n");
-        }
-
         Matrix* frontier_t = mat_mul(model->weights[i], frontier); 
         mat_add(frontier_t, model->bias[i], 1);
         mat_map(frontier_t, sigmoid, 1);
+
+        if (DEBUG)
+        {
+            printf("\ni: %d\n", i);
+            printf("\nFrontier (%d, %d)\n", frontier->rows, frontier->columns); 
+            mat_print(frontier);
+
+            printf("\nWeights[%d] (%d, %d)\n", i, model->weights[i]->rows, model->weights[i]->columns);
+            mat_print(model->weights[i]);
+
+            printf("\nBias[%d] (%d, %d)\n",i, model->bias[i]->rows, model->bias[i]->columns);
+            mat_print(model->bias[i]);
+
+            printf("\nfrontier_t: sigmoid(mul(model->weights[%d], frontier) + model->bias[%d])\n", i, i);
+            mat_print(frontier_t);
+        }
+
 
         mat_free(frontier, 0);
         frontier = frontier_t;
@@ -80,9 +87,20 @@ double* backward_pass(
     double input[model->layers[0]], 
     double output[model->layers[model->num_layers-1]]
 ){    
-    Matrix* O = arr_to_mat(model->layers[model->num_layers-1], output, 1);
+    Matrix* O = arr_to_mat(model->layers[model->num_layers], output, 1);
     Matrix* frontier[model->num_layers+1];
     frontier[0] = arr_to_mat(model->layers[0], input, 1);
+    mat_normalize(frontier[0]);
+    mat_map(frontier[0], sigmoid, 1);
+
+    if (DEBUG)
+    {
+        printf("\nFrontier[%d]: \n", 0); 
+        mat_print(frontier[0]);
+
+        printf("\noutput: \n"); 
+        mat_print(O);
+    }
 
     for(int i = 0; i < model->num_layers; i++)
     {
@@ -90,33 +108,81 @@ double* backward_pass(
 
         mat_add(frontier[i+1], model->bias[i], 1);
         mat_map(frontier[i+1], sigmoid, 1);
+        if (DEBUG)
+        {
+            printf("\n model->weights[%d]\n", i); 
+            mat_print(model->weights[i]);
+
+            printf("\n model->bias[%d] \n", i); 
+            mat_print(model->bias[i]);
+
+            printf("\nfrontier[%d]: sigmoid(mat_mul(model->weights[%d], frontier[%d]) + model->bias[%d])\n", i+1, i, i, i);
+            mat_print(frontier[i+1]);
+        }
     }
 
 
     Matrix* error[model->num_layers+1];
-    Matrix* neg_frontier = mat_scale(frontier[model->num_layers-1], -1, 0);
+    Matrix* neg_frontier = mat_scale(frontier[model->num_layers], -1, 0);
     error[model->num_layers] = mat_add(O, neg_frontier, 0); 
+    if (DEBUG)
+    {
+        printf("\n neg_frontier = -frontier[%d: model->num_layers]\n", model->num_layers);
+        mat_print(neg_frontier);
+        printf("error[%d: model->num_layer] = O + neg_frontier\n", model->num_layers); 
+        mat_print(error[model->num_layers]);
+    }
+
     free(neg_frontier);
+
 
     for(int i = model->num_layers-1; i >= 0; i--)
     {
 
-        error[i] = mat_mul(mat_transpose(model->weights[i], 0), error[i+1]);
+        Matrix* weights_t = mat_transpose(model->weights[i], 0);
+        error[i] = mat_mul(weights_t, error[i+1]);
 
-        Matrix* d_frontier = mat_map(frontier[i+1], dsigmoid, 0);
-        
-        mat_scalar_mul(d_frontier, error[i], 1);
-        mat_scale(d_frontier, model->learning_rate, 1);
+        Matrix* gradient = mat_map(frontier[i+1], dsigmoid, 0);
+        mat_scalar_mul(gradient, error[i+1], 1);
+        mat_scale(gradient, model->learning_rate, 1);
 
-        Matrix* frontier_t = mat_transpose(frontier[i], 0);
-        Matrix* d_weights = mat_mul(d_frontier, frontier_t);
+        // Matrix* neg_gradient = mat_scale(gradient, -1, 0);
+        mat_add(model->bias[i], gradient, 1);
 
-        mat_scale(d_weights, -1, 1);
+        Matrix* frontier_t =  mat_transpose(frontier[i], 0);
+        Matrix* d_weights = mat_mul(gradient, frontier_t);
+
+        // mat_scale(d_weights, -1, 1);
         mat_add(model->weights[i], d_weights, 1);
 
+        if (GRADIENT_PRINT)
+        {
+            printf("\n");
+            mat_print(gradient);
+        }
+
+        if (DEBUG)
+        {
+            printf("\ni : %d\n", i);
+            printf("\n weights_t= transpose(model->weights[%d])\n", i);
+            mat_print(weights_t); 
+
+            printf("\n error[%d]\n", i); 
+            mat_print(error[i]);
+
+            printf("\nfrontier[%d]\n", i+1); 
+            mat_print(frontier[i+1]);
+
+            printf("\n gradient = map(frontier[%d], dsigmoid) * errror[%d] * lr: %f\n", i+1, i+1, model->learning_rate); 
+            mat_print(gradient);
+
+        }
+        
+        free(gradient);
         free(frontier_t);
-        free(d_frontier);
+        free(weights_t);
         free(d_weights);
+        // free(neg_gradient);
     }
 
     double* e = mat_to_arr(error[model->num_layers]); 
@@ -125,13 +191,41 @@ double* backward_pass(
 
 int main()
 {
-    int layers[3] = {2, 3, 2};
-    double input[2] = {0, 0};
-    double output[2] = {1, 0};
+    int layers[3] = {2, 2, 1};
+    int epochs = 15000; 
     Model* model = initialize_model(2, layers); 
-    backward_pass(model, input, output);
-    double* result = forward_pass(model, input);
-    printf("Result: "); 
-    print_arr(2, result);
+    model->learning_rate = 0.2; 
+    
+    
+    // FILE* f; 
+    // f = fopen("xor.txt", "r");
+    // fscanf(f, "%d", &epochs);
+    srand(time(NULL));
+    
+    for(int i = 0; i < epochs; i++)
+    {
+        int a = rand() % 2, b = rand() % 2; 
+        int o = a ^ b; 
+        
+        // fscanf(f, "%d %d %d", &a, &b, &o);
+        double input[2] = {(double)a, (double)b};
+        double output[1] = {(double)o};
+        // double input[2] = {1, 1};
+        // double output[1] = {1};
+        
+        // printf("%f %f %f\n", input[0], input[1], output[0]);
+        backward_pass(model, input, output);
+    }
+
+    for(int i = 0; i < 2; i++)
+    {
+        for(int j = 0; j < 2; j++)
+        {
+            double input[2] = {(double)i, (double)j};
+            double* result = forward_pass(model, input);
+            printf("Result for %d^%d: ", i, j); 
+            print_arr(1, result);
+        }
+    }
     return 0;
 }

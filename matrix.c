@@ -58,6 +58,7 @@ Matrix* mat_mul(Matrix* A, Matrix* B)
     if (A->columns != B->rows)
     {
         printf("Cannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);         
+
         return NULL; 
     }
     Matrix* O = mat_init(A->rows, B->columns);
@@ -78,7 +79,7 @@ Matrix* mat_scalar_mul(Matrix* A, Matrix* B, int in_place)
 {
     if (A->rows != B->rows || A->columns != B->columns)
     {
-        printf("Cannot add (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);
+        printf("Cannot scalar multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);
         return NULL;
     }
 
@@ -113,16 +114,15 @@ Matrix* mat_add(Matrix* A, Matrix* B, int in_place){
 
 Matrix* mat_map(Matrix* A, double f(double), int in_place)
 {
-    Matrix* O = mat_init(A->rows, A->columns);
-    for(int i = 0; i < O->rows; i++)
-       for(int j = 0; j < O->columns; j++) 
-            if(in_place)
+    Matrix* O = NULL; 
+    if (in_place == 0) O = mat_init(A->rows, A->columns);
+    for(int i = 0; i < A->rows; i++)
+       for(int j = 0; j < A->columns; j++) 
+            if(in_place == 1) 
                 A->matrix[i][j] = f(A->matrix[i][j]);
-            else
+            else 
                 O->matrix[i][j] = f(A->matrix[i][j]);
-    
-    if (in_place)
-        return NULL;
+
     return O;
 }
 
@@ -238,7 +238,9 @@ void mat_normalize(Matrix* A)
             variance += pow(A->matrix[i][j] - mean, 2);
     variance = sqrt(variance/N);
     
+
     mat_add_scalar(A, -mean, 1);
-    mat_scale(A, 1/variance, 1);
+    if (variance != 0)
+        mat_scale(A, 1/variance, 1);
 }
 
