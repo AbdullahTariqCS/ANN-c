@@ -4,6 +4,7 @@
 #include "util.c"
 #include <time.h>
 
+
 #define DEBUG 0
 #define GRADIENT_PRINT 0
 
@@ -15,6 +16,7 @@ typedef struct Model
     Matrix **weights; // array of matrices
     Matrix **bias;
 } Model;
+
 
 Model *initialize_model(
     int num_layers, //excluding the input layer
@@ -138,7 +140,9 @@ double* backward_pass(
 
     for(int i = model->num_layers-1; i >= 0; i--)
     {
-
+        //gradient = error[i+1] * lr * dsigmoid(output: frontier[i+1])
+        //d_weights[i] = gradient x input: frontier[i]
+        
         Matrix* weights_t = mat_transpose(model->weights[i], 0);
         error[i] = mat_mul(weights_t, error[i+1]);
 
