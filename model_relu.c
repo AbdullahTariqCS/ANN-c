@@ -50,13 +50,13 @@ double* forward_pass(Model* model, double input[model->layers[0]])
     
     Matrix* frontier = arr_to_mat(model->layers[0], input, 1);
     mat_normalize(frontier);
-    mat_map(frontier, sigmoid, 1);
+    mat_map(frontier, relu, 1);
 
     for(int i = 0; i < model->num_layers; i++)
     {
         Matrix* frontier_t = mat_mul(model->weights[i], frontier); 
         mat_add(frontier_t, model->bias[i], 1);
-        mat_map(frontier_t, sigmoid, 1);
+        mat_map(frontier_t, relu, 1);
 
         if (DEBUG)
         {
@@ -93,7 +93,7 @@ double* backward_pass(
     Matrix* frontier[model->num_layers+1];
     frontier[0] = arr_to_mat(model->layers[0], input, 1);
     mat_normalize(frontier[0]);
-    mat_map(frontier[0], sigmoid, 1);
+    mat_map(frontier[0], relu, 1);
 
     if (DEBUG)
     {
@@ -109,7 +109,7 @@ double* backward_pass(
         frontier[i+1] = mat_mul(model->weights[i], frontier[i]); 
 
         mat_add(frontier[i+1], model->bias[i], 1);
-        mat_map(frontier[i+1], sigmoid, 1);
+        mat_map(frontier[i+1], relu, 1);
         if (DEBUG)
         {
             printf("\n model->weights[%d]\n", i); 
@@ -146,7 +146,7 @@ double* backward_pass(
         Matrix* weights_t = mat_transpose(model->weights[i], 0);
         error[i] = mat_mul(weights_t, error[i+1]);
 
-        Matrix* gradient = mat_map(frontier[i+1], dsigmoid, 0);
+        Matrix* gradient = mat_map(frontier[i+1], drelu, 0);
         mat_scalar_mul(gradient, error[i+1], 1);
         mat_scale(gradient, model->learning_rate, 1);
 
@@ -195,8 +195,8 @@ double* backward_pass(
 
 int main()
 {
-    int numLayers = 4; 
-    int layers[] = {2, 2, 2, 1};
+    int layers[] = {2, 4, 1};
+    int numLayers = sizeof(layers)/sizeof(int); 
     int epochs = 10000; 
     Model* model = initialize_model(numLayers-1, layers); 
     model->learning_rate = 0.2; 
