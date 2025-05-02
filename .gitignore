@@ -4,4 +4,4 @@
 archive
 dataset
 **/*.zip
-./builds
+builds

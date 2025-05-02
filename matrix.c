@@ -1,3 +1,4 @@
+#pragma once
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -197,13 +198,33 @@ double* mat_to_arr(Matrix* A)
 }
 
 
-void mat_rand(Matrix* A)
+// void mat_rand(Matrix* A)
+// {
+//     double *normal_data = malloc(A->rows * A->columns * sizeof(double));
+//     const double PI = 3.14;
+//     for(int i = 0; i < A->rows; i++)
+//         for(int j = 0; j < A->columns; j++)
+//             A->matrix[i][j] = -1 + rand() % (2);
+// }
+
+void mat_zeros(Matrix* A)
 {
     double *normal_data = malloc(A->rows * A->columns * sizeof(double));
-    const double PI = 3.14;
     for(int i = 0; i < A->rows; i++)
         for(int j = 0; j < A->columns; j++)
-            A->matrix[i][j] = -100 + rand() % (201);
+            A->matrix[i][j] = 0;
+}
+
+void mat_rand(Matrix* A) {
+    double stddev = sqrt(2.0 / (A->columns));  // He initialization for ReLU
+    for (int i = 0; i < A->rows; i++) {
+        for (int j = 0; j < A->columns; j++) {
+            double u1 = (rand() + 1.0) / (RAND_MAX + 1.0);
+            double u2 = (rand() + 1.0) / (RAND_MAX + 1.0);
+            double rand_normal = sqrt(-2 * log(u1)) * cos(2 * 3.14159 * u2);
+            A->matrix[i][j] = rand_normal * stddev;
+        }
+    }
 }
 
 Matrix* mat_sum(Matrix* A, Matrix* B, int in_place)

@@ -16,6 +16,8 @@ void get_dir(int **names, int *count, const char *dir_name)
     }
 
     while ((entry = readdir(dir)) != NULL) {
+        // if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) 
+        //     continue;
         local_count++;
     }
     closedir(dir);
@@ -35,10 +37,13 @@ void get_dir(int **names, int *count, const char *dir_name)
         exit(EXIT_FAILURE);
     }
 
-    for(int i = 0; i < *count; i++)
-    {
-        entry = readdir(dir);
-        (*names)[i] = atoi(entry->d_name); 
+    int idx = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        // if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) 
+        //     continue;
+        if (idx >= *count) break;
+        (*names)[idx] = atoi(entry->d_name);
+        idx++;
     }
 
     closedir(dir);

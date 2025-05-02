@@ -98,8 +98,9 @@ Model *initialize_model(
         mat_normalize(model->weights[i]);
 
         model->bias[i] = mat_init(layers[i + 1], 1);
-        mat_rand(model->bias[i]);
-        mat_normalize(model->bias[i]);
+        // mat_rand(model->bias[i]);
+        // mat_normalize(model->bias[i]);
+        mat_zeros(model->bias[i]);
     }
 
     return model;
