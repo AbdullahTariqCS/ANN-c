@@ -7,7 +7,7 @@ int main()
     int width = 24, height = 24; 
     unsigned char* image = NULL; 
     char filename[] = "../dataset/48/0.pgm";
-    readPGM(filename, &image, &width, &height); 
+    read_pgm(filename, &image, &width, &height); 
 
     for (int i = 0; i < width * height; i++)
     {

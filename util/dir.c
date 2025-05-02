@@ -3,29 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-void get_dir(char ***names, int *count, const char *dir_name)
+void get_dir(int **names, int *count, const char *dir_name)
 {
     DIR *dir;
     struct dirent *entry;
 
-    if (!count)
-    {
-        *count = 0;
-    
-        dir = opendir(dir_name);
-        if (!dir) {
-            fprintf(stderr, "Cannot open directory: %s\n", dir_name);
-            exit(EXIT_FAILURE);
-        }
-    
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_type == DT_REG)  // regular file
-                (*count)++;
-        }
-        closedir(dir);
+    int local_count = 0;
+    dir = opendir(dir_name);
+    if (!dir) {
+        fprintf(stderr, "Cannot open directory: %s\n", dir_name);
+        exit(EXIT_FAILURE);
     }
 
-    *names = malloc(*count * sizeof(char *));
+    while ((entry = readdir(dir)) != NULL) {
+        local_count++;
+    }
+    closedir(dir);
+
+    if(*count = -1 || *count > local_count)
+        *count = local_count;
+
+    *names = malloc(*count * sizeof(int));
     if (!*names) {
         perror("malloc failed");
         exit(EXIT_FAILURE);
@@ -37,17 +35,10 @@ void get_dir(char ***names, int *count, const char *dir_name)
         exit(EXIT_FAILURE);
     }
 
-    int i = 0;
     for(int i = 0; i < *count; i++)
     {
         entry = readdir(dir);
-        if (entry->d_type == DT_REG) {
-            (*names)[i] = strdup(entry->d_name); // copy name into new memory
-            if (!(*names)[i]) {
-                perror("strdup failed");
-                exit(EXIT_FAILURE);
-            }
-        }
+        (*names)[i] = atoi(entry->d_name); 
     }
 
     closedir(dir);

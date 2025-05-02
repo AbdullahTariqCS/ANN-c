@@ -1,10 +1,12 @@
 #include "model.c"
+#include "util/sigmoid.c"
+
 
 int main()
 {
-    int numLayers = 4; 
+    int numLayers = 3; 
     int layers[] = {2, 2, 1};
-    int epochs = 10000; 
+    int epochs = 100000; 
     Model* model = initialize_model(numLayers-1, layers); 
     model->learning_rate = 0.1; 
     
@@ -26,7 +28,7 @@ int main()
         // double output[1] = {1};
         
         // printf("%f %f %f\n", input[0], input[1], output[0]);
-        backward_pass(model, input, output);
+        backward_pass(model, input, output, sigmoid, dsigmoid);
     }
 
     for(int i = 0; i < 2; i++)
@@ -34,7 +36,7 @@ int main()
         for(int j = 0; j < 2; j++)
         {
             double input[2] = {(double)i, (double)j};
-            double* result = forward_pass(model, input);
+            double* result = forward_pass(model, input, sigmoid);
             printf("Result for %d^%d: ", i, j); 
             print_arr(1, result);
         }

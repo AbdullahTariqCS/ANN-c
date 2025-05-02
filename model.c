@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "matrix.c"
-#include "util/sigmoid.c" 
+// #include "util/sigmoid.c" 
 #include "util/array.c"
 #include <time.h>
+#include <unistd.h>
+#include "util/absolute.c"
 
 
 #define DEBUG 0
@@ -18,6 +20,63 @@ typedef struct Model
     Matrix **bias;
 } Model;
 
+void write_model(Model *model, char* filename)
+{
+    FILE *file;     
+    file = fopen(filename, "w");
+    if (!file)
+    {
+        fprintf(stderr, "Cannot open file %s\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    //Structure of model
+    //num_layers
+    //layers
+    //learning rate
+    //weights
+    //bias
+    fprintf(file, "%d\n", model->num_layers); 
+    for(int i = 0 ; i < model->num_layers+1; i++)
+        fprintf(file, "%d;", model->layers[i]);
+    fprintf(file, "\n");
+    fprintf(file, "%f\n", model->learning_rate);
+
+    for (int i = 0; i < model->num_layers; i++)
+    {
+        mat_write(model->weights[i], file);
+        mat_write(model->bias[i], file);
+    }
+}
+
+Model *read_model(char* filename)
+{
+
+    FILE* file = fopen(filename, "r");
+    Model* model = (Model*)malloc(sizeof(Model));
+    if (!file)
+    {
+        fprintf(stderr, "Cannot open file %s\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    fscanf(file, "%d\n", &model->num_layers);
+    model->layers = (int*)malloc(sizeof(int) * model->num_layers+1);
+    model->weights = malloc(model->num_layers * sizeof(Matrix *));
+    model->bias = malloc(model->num_layers * sizeof(Matrix *));
+    for(int i =0 ; i<model->num_layers+1; i++)
+    {
+        fscanf(file, "%d;", &model->layers[i]); 
+    }
+    fscanf(file, "\n");
+
+    for(int i = 0; i < model->num_layers; i++)
+    {
+        model->weights[i] = mat_read(file);
+        model->bias[i] = mat_read(file);
+    }
+
+}
 
 Model *initialize_model(
     int num_layers, //excluding the input layer
@@ -46,18 +105,18 @@ Model *initialize_model(
     return model;
 }
 
-double* forward_pass(Model* model, double input[model->layers[0]])
+double* forward_pass(Model* model, double input[model->layers[0]], double activation(double))
 {
     
     Matrix* frontier = arr_to_mat(model->layers[0], input, 1);
     mat_normalize(frontier);
-    mat_map(frontier, sigmoid, 1);
+    // mat_map(frontier, activation, 1);
 
     for(int i = 0; i < model->num_layers; i++)
     {
         Matrix* frontier_t = mat_mul(model->weights[i], frontier); 
         mat_add(frontier_t, model->bias[i], 1);
-        mat_map(frontier_t, sigmoid, 1);
+        mat_map(frontier_t, activation, 1);
 
         if (DEBUG)
         {
@@ -85,16 +144,18 @@ double* forward_pass(Model* model, double input[model->layers[0]])
     return res;
 }
 
-double* backward_pass(
+double backward_pass(
     Model* model, 
     double input[model->layers[0]], 
-    double output[model->layers[model->num_layers-1]]
+    double output[model->layers[model->num_layers-1]], 
+    double activation(double),
+    double dactivation(double)
 ){    
     Matrix* O = arr_to_mat(model->layers[model->num_layers], output, 1);
     Matrix* frontier[model->num_layers+1];
     frontier[0] = arr_to_mat(model->layers[0], input, 1);
     mat_normalize(frontier[0]);
-    mat_map(frontier[0], sigmoid, 1);
+    mat_map(frontier[0], activation, 1);
 
     if (DEBUG)
     {
@@ -110,7 +171,7 @@ double* backward_pass(
         frontier[i+1] = mat_mul(model->weights[i], frontier[i]); 
 
         mat_add(frontier[i+1], model->bias[i], 1);
-        mat_map(frontier[i+1], sigmoid, 1);
+        mat_map(frontier[i+1], activation, 1);
         if (DEBUG)
         {
             printf("\n model->weights[%d]\n", i); 
@@ -128,6 +189,7 @@ double* backward_pass(
     Matrix* error[model->num_layers+1];
     Matrix* neg_frontier = mat_scale(frontier[model->num_layers], -1, 0);
     error[model->num_layers] = mat_add(O, neg_frontier, 0); 
+    // mat_map(error[model->num_layers], absolute, 1);
     if (DEBUG)
     {
         printf("\n neg_frontier = -frontier[%d: model->num_layers]\n", model->num_layers);
@@ -146,8 +208,9 @@ double* backward_pass(
         
         Matrix* weights_t = mat_transpose(model->weights[i], 0);
         error[i] = mat_mul(weights_t, error[i+1]);
+        // mat_map(error[i], absolute, 1);
 
-        Matrix* gradient = mat_map(frontier[i+1], dsigmoid, 0);
+        Matrix* gradient = mat_map(frontier[i+1], dactivation, 0);
         mat_scalar_mul(gradient, error[i+1], 1);
         mat_scale(gradient, model->learning_rate, 1);
 
@@ -183,15 +246,27 @@ double* backward_pass(
 
         }
         
-        free(gradient);
-        free(frontier_t);
-        free(weights_t);
-        free(d_weights);
+        mat_free(gradient, 0);
+        mat_free(frontier_t, 0);
+        mat_free(weights_t, 0);
+        mat_free(d_weights, 0);
         // free(neg_gradient);
     }
-
+    
     double* e = mat_to_arr(error[model->num_layers]); 
-    return e; 
+    double mse = 0; 
+    for (int i = 0 ; i < model->num_layers+1; i++)
+    {
+        mse += pow(e[i], 2);
+    }
+
+    for (int i = 0; i < model->num_layers+1; i++)
+    {
+        mat_free(frontier[i], 0);
+        mat_free(error[i], 0);
+
+    }
+    return mse; 
 }
 
 

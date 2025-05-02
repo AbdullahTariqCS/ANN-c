@@ -53,6 +53,34 @@ void mat_print(Matrix* A)
     }
 }
 
+void mat_write(Matrix* A, FILE* file)
+{
+
+    fprintf(file, "%d;%d\n", A->rows, A->columns);
+    for(int i = 0;  i<A->rows; i++ )
+    {
+        for(int j = 0; j < A->columns; j++)
+            fprintf(file, "%f;", A->matrix[i][j]);
+        fprintf(file, "\n");
+    }
+}
+
+Matrix* mat_read(FILE* file)
+{
+    int rows, columns; 
+    fscanf(file, "%d;%d\n", &rows, &columns);
+    Matrix* A = mat_init(rows, columns);
+    for(int i = 0 ; i < rows; i++)
+    {
+        for(int j = 0; j < columns; j++)
+        {
+            fscanf(file, "%lf;", &A->matrix[i][j]);
+        }
+        fscanf(file, "\n");
+    }
+    return A;
+}
+
 Matrix* mat_mul(Matrix* A, Matrix* B)
 {
     if (A->columns != B->rows)

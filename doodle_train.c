@@ -1,22 +1,26 @@
 #include "./util/dir.c"
 #include "model.c"
 #include "util/pgm.c"
+#include "./util/softmax.c"
+#include "util/relu.c"
+#include "util/sigmoid.c"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-char PATH_TO_DATASET[] =  "./dataset/";
+char PATH_TO_DATASET[] = "./dataset/";
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    int numLayers = 4; 
+    int numLayers = 4;
     int layers[] = {576, 16, 16, 10};
-    Model* model = initialize_model(numLayers-1, layers);
+    Model *model = initialize_model(numLayers - 1, layers);
+    model->learning_rate = 0.01; 
 
     int epochs, images_per_epoch, images_per_class;
-    if (argc <= 1) epochs = 100;  
+    if (argc <= 1) epochs = 10;
     else epochs = atoi(argv[1]);
-    
+
     if (argc <= 2) images_per_epoch = 1000;
     else images_per_epoch = atoi(argv[2]);
 
@@ -27,47 +31,84 @@ int main(int argc, char* argv[])
     printf("Images Per Epoch %d\n", images_per_epoch);
     printf("Images Per Class %d\n", images_per_class);
 
-
-    //getting the names of dataset
-    char *** dirs = malloc(sizeof(char*) * 10);
-    // int dirCount[10];
+    // getting the names of dataset
+    int *dirs[10];
+    int dirCount[10];
     for (int i = 0; i < 10; i++)
     {
-        char class_name[24]; 
-        sprintf(class_name, "%s%d", PATH_TO_DATASET, i+48);
-        printf("Got directory %s\n", class_name); 
-        get_dir(&dirs[i], &images_per_class, class_name);
+        char class_name[24];
+        sprintf(class_name, "%s%d", PATH_TO_DATASET, i + 48);
+        dirCount[i] = images_per_class;
+        get_dir(&dirs[i], &dirCount[i], class_name);
+        printf("Got directory %s (%d)\n", class_name, dirCount[i]);
+        // for(int j = 0; j < dirCount[i]; j++)
+        //     printf("%d ", dirs[i][j]);
+        // printf("\n");
     }
 
+    // return 0;
 
+    srand(time(NULL));
     for (int i = 0; i < epochs; i++)
     {
-        printf("Training for Epoch %d\n",  i); 
-        for(int j = 0; j < images_per_epoch; j++)
+        printf("Training for Epoch %d. ", i);
+        double e = 0.0; 
+        // int class = rand() % 10;
+        int class;
+        for (int j = 0; j < images_per_epoch; j++)
         {
-            unsigned char *image; 
+            unsigned char *image;
             int width, height;
-            int class = rand() % 10; 
-            int imageNum = rand() % images_per_class;
-            char filename[24]; 
-            sprintf(filename, "%s%d/%s", PATH_TO_DATASET, class + 48, dirs[class][imageNum]);
-            printf("path: %s", filename);
-            readPGM(filename, &image, &width, &height);
-            
-            double input[width * height]; 
+            class = rand() % 10;
+            int imageNum = 3 + rand() % dirCount[class];
+
+            char filename[24];
+            sprintf(filename, "%s%d/%d.pgm", PATH_TO_DATASET, class + 48, dirs[class][imageNum]);
+            // printf("path: %s\n", filename);
+            if (!read_pgm(filename, &image, &width, &height))
+                continue;
+
+            double input[width * height];
             double output[10];
-            for(int i = 0; i < width * height; i++)
+            for (int k = 0; k < width * height; k++)
             {
-                input[i] = (double)image[i];
+                input[k] = (double)image[k];
             }
 
-            for(int i = 0; i < 10; i++)
+            for (int k = 0; k < 10; k++)
             {
-                output[i] = (double)(i == class);
+                output[k] = (double)(k == class);
             }
-            // backward_pass(model, input, output);
+            e += backward_pass(model, input, output, sigmoid, dsigmoid);
+            free(image);
         }
+        printf("Class: %d; Error: %f\n", class, e / images_per_epoch);
     }
+
+    printf("Forward Pass\n");
+    for (int i = 0; i < 10; i++)
+    {
+        unsigned char *image;
+        int width, height;
+
+        char filename[24];
+        sprintf(filename, "%s%d/%d.pgm", PATH_TO_DATASET, i + 48, dirs[i][5]);
+        printf("path: %s\n", filename);
+        read_pgm(filename, &image, &width, &height);
+
+        double input[width * height];
+        double* output;
+        for (int i = 0; i < width * height; i++)
+        {
+            input[i] = (double)image[i];
+        }
+
+        output = forward_pass(model, input, sigmoid);
+        // double* s_output = softmax(model->layers[model->num_layers], output);
+        print_arr(10, output);
+        free(output); 
+        free(image);
+    }
+
     return EXIT_SUCCESS;
-    
 }
