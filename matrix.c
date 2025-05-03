@@ -227,6 +227,28 @@ void mat_rand(Matrix* A) {
     }
 }
 
+void mat_rand_xavier(Matrix* A) {
+    if (A->columns == 0 || A->rows == 0) {  // Safety check
+        fprintf(stderr, "Invalid matrix dimensions for initialization\n");
+        exit(EXIT_FAILURE);
+    }
+
+    double fan_in = A->columns;
+    double fan_out = A->rows;
+    double stddev = sqrt(2.0 / (fan_in + fan_out));  // Xavier/Glorot initialization
+
+    for (int i = 0; i < A->rows; i++) {
+        for (int j = 0; j < A->columns; j++) {
+            // Box-Muller transform for normal distribution
+            double u1 = (rand() + 1.0) / (RAND_MAX + 1.0);  // Avoid log(0)
+            double u2 = (rand() + 1.0) / (RAND_MAX + 1.0);
+            double rand_normal = sqrt(-2.0 * log(u1)) * cos(2.0 * 3.14159 * u2);
+            
+            A->matrix[i][j] = rand_normal * stddev;
+        }
+    }
+}
+
 Matrix* mat_sum(Matrix* A, Matrix* B, int in_place)
 {
     Matrix* O; 

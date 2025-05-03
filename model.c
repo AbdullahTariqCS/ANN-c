@@ -94,7 +94,7 @@ Model *initialize_model(
     for (int i = 0; i < num_layers; i++)
     {
         model->weights[i] = mat_init(layers[i + 1], layers[i]);
-        mat_rand(model->weights[i]);
+        mat_rand_xavier(model->weights[i]);
         mat_normalize(model->weights[i]);
 
         model->bias[i] = mat_init(layers[i + 1], 1);

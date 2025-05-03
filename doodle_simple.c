@@ -1,5 +1,5 @@
 #include "./util/dir.c"
-#include "model_softmax.c"
+#include "model.c"
 #include "util/pgm.c"
 #include "util/relu.c"
 #include "util/sigmoid.c"
@@ -12,9 +12,9 @@ char PATH_TO_DATASET[] = "./dataset/";
 int main(int argc, char *argv[])
 {
     int numLayers = 4;
-    int layers[] = {576, 320, 64, 10};
+    int layers[] = {576, 64, 64, 1};
     Model *model = initialize_model(numLayers - 1, layers);
-    model->learning_rate = 0.01; 
+    model->learning_rate = 0.001; 
 
     int epochs, images_per_epoch, images_per_class;
     if (argc <= 1) epochs = 10;
@@ -67,14 +67,13 @@ int main(int argc, char *argv[])
             for (int k = 0; k < width * height; k++)
                 input[k] = (double)image[k] / 255.0;
 
-            for (int k = 0; k < 10; k++)
-                output[k] = (double)(k == class);
+            // for (int k = 0; k < 10; k++)
+            output[0] = (double)(class == 0);
 
             e += backward_pass(model, input, output, sigmoid, dsigmoid);
             free(image);
         }
         printf("Error: %f\n", e / images_per_epoch);
-        write_model(model, "doodle_classifier.txt");
     }
 
     printf("Forward Pass\n");
@@ -98,7 +97,7 @@ int main(int argc, char *argv[])
 
         output = forward_pass(model, input, sigmoid);
         // double* s_output = softmax(model->layers[model->num_layers], output);
-        print_arr(10, output);
+        print_arr(1, output);
         free(output); 
         free(image);
     }

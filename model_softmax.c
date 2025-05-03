@@ -92,7 +92,7 @@ Model *initialize_model(
     for (int i = 0; i < num_layers; i++)
     {
         model->weights[i] = mat_init(layers[i + 1], layers[i]);
-        mat_rand(model->weights[i]);
+        mat_rand_xavier(model->weights[i]);
         mat_normalize(model->weights[i]);
 
         model->bias[i] = mat_init(layers[i + 1], 1);
@@ -100,39 +100,6 @@ Model *initialize_model(
         // mat_normalize(model->bias[i]);
         mat_zeros(model->bias[i]);
     }
-
-    // In initialize_model:
-    // for (int i = 0; i < num_layers; i++)
-    // {
-    //     model->weights[i] = mat_init(layers[i + 1], layers[i]);
-    //     double stddev = sqrt(2.0 / (layers[i] + layers[i + 1]));
-    //     for (int r = 0; r < model->weights[i]->rows; r++)
-    //     {
-    //         for (int c = 0; c < model->weights[i]->columns; c++)
-    //         {
-    //             double u1 = (rand() + 1.0) / (RAND_MAX + 1.0);
-    //             double u2 = (rand() + 1.0) / (RAND_MAX + 1.0);
-    //             double rand_std_normal = sqrt(-2.0 * log(u1)) * cos(2.0 * 3.14159 * u2);
-    //             model->weights[i]->matrix[r][c] = rand_std_normal * stddev;
-    //             // model->weights[i]->matrix[r][c] = (rand() / (double)RAND_MAX) * stddev;
-    //         }
-
-    //     }
-    //     model->bias[i] = mat_init(layers[i + 1], 1);
-    //     stddev = sqrt(2.0 / (layers[i + 1]));
-    //     for (int r = 0; r < model->bias[i]->rows; r++)
-    //     {
-    //         for (int c = 0; c < model->bias[i]->columns; c++)
-    //         {
-    //             double u1 = (rand() + 1.0) / (RAND_MAX + 1.0);
-    //             double u2 = (rand() + 1.0) / (RAND_MAX + 1.0);
-    //             double rand_std_normal = sqrt(-2.0 * log(u1)) * cos(2.0 * 3.14159 * u2);
-    //             model->weights[i]->matrix[r][c] = rand_std_normal * stddev;
-    //             // model->bias[i]->matrix[r][c] = (rand() / (double)RAND_MAX) * stddev;
-    //         }
-    //     }
-    //         // Similarly for bias (initialize to small values or zero)
-    // }
     return model;
 }
 
@@ -238,7 +205,7 @@ double backward_pass(
         mat_print(error[model->num_layers]);
     }
 
-    free(neg_O);
+    mat_free(neg_O, 0);
 
     for (int i = model->num_layers - 1; i >= 0; i--)
     {
@@ -253,11 +220,14 @@ double backward_pass(
         if (i != model->num_layers - 1)
         {
             gradient = mat_map(frontier[i + 1], dactivation, 0);
-            mat_scalar_mul(gradient, error[i + 1], 1);
+            mat_scalar_mul(gradient, error[i+1], 1);
         }
         else
-            gradient = mat_copy(error[i + 1]);
-
+        {
+            gradient = mat_copy(error[i+1]);
+        }
+        
+        // mat_scalar_mul(gradient, error[i+1], 1);
         mat_scale(gradient, model->learning_rate, 1);
 
         Matrix* neg_gradient = mat_scale(gradient, -1, 0);
