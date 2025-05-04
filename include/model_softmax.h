@@ -13,10 +13,10 @@
 typedef struct Model
 {
     int num_layers;
-    int *layers; // number of nodes in a layer
+    int *layers; // Number of nodes in a layer
     double learning_rate;
-    Matrix **weights; // array of matrices
-    Matrix **bias;
+    Matrix **weights; // Array of matrices
+    Matrix **bias;    // Array of matrices
 } Model;
 
 void write_model(Model *model, char *filename)
