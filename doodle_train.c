@@ -6,25 +6,33 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 
 char PATH_TO_DATASET[] = "./dataset/";
 
 int main(int argc, char *argv[])
 {
+    // Setting up the model
     int numLayers = 4;
     int layers[] = {576, 320, 64, 10};
     Model *model = initialize_model(numLayers - 1, layers);
-    model->learning_rate = 0.01; 
+    model->learning_rate = 0.01;
 
     int epochs, images_per_epoch, images_per_class;
-    if (argc <= 1) epochs = 10;
-    else epochs = atoi(argv[1]);
+    if (argc <= 1)
+        epochs = 10;
+    else
+        epochs = atoi(argv[1]);
 
-    if (argc <= 2) images_per_epoch = 1000;
-    else images_per_epoch = atoi(argv[2]);
+    if (argc <= 2)
+        images_per_epoch = 1000;
+    else
+        images_per_epoch = atoi(argv[2]);
 
-    if (argc <= 3) images_per_class = 1000;
-    else images_per_class = atoi(argv[3]);
+    if (argc <= 3)
+        images_per_class = 1000;
+    else
+        images_per_class = atoi(argv[3]);
 
     printf("Epochs %d\n", epochs);
     printf("Images Per Epoch %d\n", images_per_epoch);
@@ -42,12 +50,11 @@ int main(int argc, char *argv[])
         printf("Got directory %s (%d)\n", class_name, dirCount[i]);
     }
 
-
     srand(time(NULL));
     for (int i = 0; i < epochs; i++)
     {
         printf("Training for Epoch %d. ", i);
-        double e = 0.0; 
+        double e = 0.0;
         int class;
         for (int j = 0; j < images_per_epoch; j++)
         {
@@ -90,7 +97,7 @@ int main(int argc, char *argv[])
         int opened = read_pgm(filename, &image, &width, &height);
 
         double input[width * height];
-        double* output;
+        double *output;
         for (int i = 0; i < width * height; i++)
         {
             input[i] = (double)image[i] / 255.0;
@@ -99,7 +106,7 @@ int main(int argc, char *argv[])
         output = forward_pass(model, input, sigmoid);
         // double* s_output = softmax(model->layers[model->num_layers], output);
         print_arr(10, output);
-        free(output); 
+        free(output);
         free(image);
     }
 

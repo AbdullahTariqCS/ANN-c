@@ -2,6 +2,6 @@
 **/*.exe
 *.exe
 archive
-dataset
+dataset/
 **/*.zip
-builds
+builds/
