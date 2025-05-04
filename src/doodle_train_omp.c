@@ -1,4 +1,4 @@
-#include <model_softmax.h>
+#include <model_softmax_omp.h>
 #include <time.h>
 #include <dir.h>
 #include <stdio.h>
@@ -112,10 +112,16 @@ int main(int argc, char *argv[])
     //     free_model(local_model);
 
     // }
-    write_model(model, "doodle_classifier.txt");
+    write_model(model, "doodle_classifier_omp.txt");
   }
 
   printf("Forward Pass\n");
+  printf("   ");
+  for (int i = 0; i < 10; i++)
+  {
+    printf("%6d |", i);
+  }
+  printf("\n");
   for (int i = 0; i < 10; i++)
   {
     unsigned char *image;
@@ -124,7 +130,7 @@ int main(int argc, char *argv[])
     char filename[24];
     int imageNum = 3 + rand() % dirCount[i];
     sprintf(filename, "%s%d/%d.pgm", PATH_TO_DATASET, i + 48, dirs[i][5]);
-    printf("path: %s\n", filename);
+    // printf("path: %s\n", filename);
     int opened = read_pgm(filename, &image, &width, &height);
 
     double input[width * height];
@@ -135,11 +141,12 @@ int main(int argc, char *argv[])
     }
 
     output = forward_pass(model, input, sigmoid);
-    printf("Class %d: \n", i);
+    printf("%d: ", i);
     for (int j = 0; j < 10; j++)
     {
-      printf(" %d: %.4f\n", j, output[j] * 100);
+      printf("%6.2f |", output[j] * 100);
     }
+    printf("\n");
 
     free(output);
     free(image);

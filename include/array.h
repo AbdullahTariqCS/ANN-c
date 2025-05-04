@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#pragma once
+
 void print_arr(int s, double *arr)
 {
     for (int i = 0; i < s; i++)

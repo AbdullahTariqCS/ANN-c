@@ -1,6 +1,6 @@
 #pragma once
 #include <math.h>
-#include <matrix.h>
+#include <matrix_omp.h>
 
 void softmax(Matrix *O)
 {

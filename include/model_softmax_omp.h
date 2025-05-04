@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <matrix.h>
-#include <softmax.h>
+#include <matrix_omp.h>
+#include <softmax_omp.h>
 #include <array.h>
 #include <time.h>
 #include <unistd.h>
@@ -61,8 +61,8 @@ Model *read_model(char *filename)
 
     fscanf(file, "%d\n", &model->num_layers);
     model->layers = (int *)malloc(sizeof(int) * model->num_layers + 1);
-    model->weights = malloc(model->num_layers * sizeof(Matrix *));
-    model->bias = malloc(model->num_layers * sizeof(Matrix *));
+    model->weights = (Matrix **)malloc(model->num_layers * sizeof(Matrix *));
+    model->bias = (Matrix **)malloc(model->num_layers * sizeof(Matrix *));
     for (int i = 0; i < model->num_layers + 1; i++)
     {
         fscanf(file, "%d;", &model->layers[i]);
@@ -78,7 +78,7 @@ Model *read_model(char *filename)
 
 Model *initialize_model(
     int num_layers, // excluding the input layer
-    int layers[num_layers])
+    int layers[])
 {
     Model *model = (Model *)malloc(sizeof(Model));
     model->num_layers = num_layers;
@@ -86,8 +86,8 @@ Model *initialize_model(
     for (int i = 0; i < num_layers + 1; i++)
         model->layers[i] = layers[i];
 
-    model->weights = malloc(num_layers * sizeof(Matrix *));
-    model->bias = malloc(num_layers * sizeof(Matrix *));
+    model->weights = (Matrix **)malloc(num_layers * sizeof(Matrix *));
+    model->bias = (Matrix **)malloc(num_layers * sizeof(Matrix *));
 
     for (int i = 0; i < num_layers; i++)
     {
@@ -103,7 +103,7 @@ Model *initialize_model(
     return model;
 }
 
-double *forward_pass(Model *model, double input[model->layers[0]], double activation(double))
+double *forward_pass(Model *model, double input[], double activation(double))
 {
 
     Matrix *frontier = arr_to_mat(model->layers[0], input, 1);
@@ -146,8 +146,8 @@ double *forward_pass(Model *model, double input[model->layers[0]], double activa
 
 double backward_pass(
     Model *model,
-    double input[model->layers[0]],
-    double output[model->layers[model->num_layers - 1]],
+    double input[],
+    double output[],
     double activation(double),
     double dactivation(double))
 {
