@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "matrix.c"
-#include "util/softmax.c"
-#include "util/array.c"
 #include <time.h>
 #include <unistd.h>
-#include "util/absolute.c"
+#include <matrix.h>
+#include <softmax.h>
 
 #define DEBUG 0
 #define GRADIENT_PRINT 0
@@ -61,8 +59,8 @@ Model *read_model(char *filename)
 
     fscanf(file, "%d\n", &model->num_layers);
     model->layers = (int *)malloc(sizeof(int) * model->num_layers + 1);
-    model->weights = malloc(model->num_layers * sizeof(Matrix *));
-    model->bias = malloc(model->num_layers * sizeof(Matrix *));
+    model->weights = (Matrix **)malloc(model->num_layers * sizeof(Matrix *));
+    model->bias = (Matrix **)malloc(model->num_layers * sizeof(Matrix *));
     for (int i = 0; i < model->num_layers + 1; i++)
     {
         fscanf(file, "%d;", &model->layers[i]);
@@ -78,7 +76,7 @@ Model *read_model(char *filename)
 
 Model *initialize_model(
     int num_layers, // excluding the input layer
-    int layers[num_layers])
+    int *layers)
 {
     Model *model = (Model *)malloc(sizeof(Model));
     model->num_layers = num_layers;
@@ -86,8 +84,8 @@ Model *initialize_model(
     for (int i = 0; i < num_layers + 1; i++)
         model->layers[i] = layers[i];
 
-    model->weights = malloc(num_layers * sizeof(Matrix *));
-    model->bias = malloc(num_layers * sizeof(Matrix *));
+    model->weights = (Matrix **)malloc(num_layers * sizeof(Matrix *));
+    model->bias = (Matrix **)malloc(num_layers * sizeof(Matrix *));
 
     for (int i = 0; i < num_layers; i++)
     {
@@ -103,7 +101,7 @@ Model *initialize_model(
     return model;
 }
 
-double *forward_pass(Model *model, double input[model->layers[0]], double activation(double))
+double *forward_pass(Model *model, double *input, double activation(double))
 {
 
     Matrix *frontier = arr_to_mat(model->layers[0], input, 1);
@@ -220,17 +218,17 @@ double backward_pass(
         if (i != model->num_layers - 1)
         {
             gradient = mat_map(frontier[i + 1], dactivation, 0);
-            mat_scalar_mul(gradient, error[i+1], 1);
+            mat_scalar_mul(gradient, error[i + 1], 1);
         }
         else
         {
-            gradient = mat_copy(error[i+1]);
+            gradient = mat_copy(error[i + 1]);
         }
-        
+
         // mat_scalar_mul(gradient, error[i+1], 1);
         mat_scale(gradient, model->learning_rate, 1);
 
-        Matrix* neg_gradient = mat_scale(gradient, -1, 0);
+        Matrix *neg_gradient = mat_scale(gradient, -1, 0);
         mat_add(model->bias[i], neg_gradient, 1);
 
         Matrix *frontier_t = mat_transpose(frontier[i], 0);

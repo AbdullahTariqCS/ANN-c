@@ -1,14 +1,14 @@
-#include "./util/dir.c"
-#include "model_softmax.c"
-#include "util/pgm.c"
-#include "util/relu.c"
-#include "util/sigmoid.c"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <dir.h>
+#include <sigmoid.h>
+#include <model.h>
+#include <pgm.h>
+#include <array.h>
 
-char PATH_TO_DATASET[] = "./dataset/";
+char PATH_TO_DATASET[] = "./datasets/";
 
 int main(int argc, char *argv[])
 {
