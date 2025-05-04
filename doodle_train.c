@@ -132,7 +132,12 @@ int main(int argc, char *argv[])
         }
 
         output = forward_pass(model, input, sigmoid);
-        print_arr(10, output);
+        printf("Class %d: \n", i);
+        for(int j=0; j<10; j++)
+        {
+            printf(" %d: %.4f\n", j, output[j]*100);
+        }
+
         free(output); 
         free(image);
     }
