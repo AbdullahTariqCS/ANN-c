@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   Model *model;
 
   // Initializing the model
-  int epochs = 10, images_per_epoch = 100, num_threads;
+  int epochs = 10, images_per_epoch = 100, num_threads, verbose = 1;
   double learning_rate = 0.01;
 
   if (argc > 1)
@@ -27,29 +27,34 @@ int main(int argc, char *argv[])
   if (argc > 3)
     num_threads = atoi(argv[3]);
   if (argc > 4)
-    learning_rate = atoi(argv[4]);
+    verbose = atoi(argv[4]);
+  if (argc > 5)
+    learning_rate = atoi(argv[5]);
 
   int num_layers = 4;
   int layers[] = {576, 320, 64, 10};
   model = initialize_model(num_layers - 1, layers);
   model->learning_rate = learning_rate;
 
-  printf("Setting OpenMP threads to %d\n", num_threads);
   omp_set_num_threads(num_threads);
 
-  printf("Model details:\n");
-  printf("\tLayers (%d): ", model->num_layers + 1);
-  for (int i = 0; i < model->num_layers + 1; i++)
-    printf("%d ", model->layers[i]);
-  printf("\n");
-
-  printf("\tEpochs %d\n", epochs);
-  printf("\tImages Per Epoch %d\n", images_per_epoch);
-  printf("\tLearning Rate %f\n", model->learning_rate);
+  if (verbose)
+  {
+    printf("Setting OpenMP threads to %d\n", num_threads);
+    printf("Model details:\n");
+    printf("\tLayers (%d): ", model->num_layers + 1);
+    for (int i = 0; i < model->num_layers + 1; i++)
+      printf("%d ", model->layers[i]);
+    printf("\n");
+    printf("\tEpochs %d\n", epochs);
+    printf("\tImages Per Epoch %d\n", images_per_epoch);
+    printf("\tLearning Rate %f\n", model->learning_rate);
+  }
 
   // Querying available dataset items
   // Filenames are in the order [class][file number], where data is file name (which is a number)
-  printf("Querying directories:\n");
+  if (verbose)
+    printf("Querying directories:\n");
   int *filenames[10];
   int totalFilesCount[10];
   for (int i = 0; i < 10; i++)
@@ -58,16 +63,20 @@ int main(int argc, char *argv[])
     sprintf(class_name, "%s%d", PATH_TO_DATASET, i + 48);
     totalFilesCount[i] = -1;
     get_dir(&filenames[i], &totalFilesCount[i], class_name);
-    printf("\tSearched directory %s (%d items)\n", class_name, totalFilesCount[i]);
+    if (verbose)
+      printf("\tSearched directory %s (%d items)\n", class_name, totalFilesCount[i]);
   }
 
   // Training the model
-  printf("Training model:\n");
+  if (verbose)
+    printf("Training model:\n");
   srand(time(NULL));
   double average_time_across_epochs = 0.0;
+  double average_e;
   for (int i = 0; i < epochs; i++)
   {
-    printf("\tEpoch %d:\n", i + 1);
+    if (verbose)
+      printf("\tEpoch %d:\n", i + 1);
     double e = 0.0;
     double total_time = 0.0;
     int class;
@@ -104,20 +113,28 @@ int main(int argc, char *argv[])
 
     average_time_across_epochs += total_time / images_per_epoch;
 
-    printf("\t\tError: %f. \n", e / images_per_epoch);
-    printf("\t\tTime taken: %.5f ms\n", total_time / images_per_epoch);
+    if (verbose)
+    {
+      printf("\t\tError: %f. \n", e / images_per_epoch);
+      printf("\t\tTime taken: %.5f ms\n", total_time / images_per_epoch);
+    }
+    average_e += e / images_per_epoch;
 
     // write_model(model, "doodle_classifier.txt"); Not needed for now
   }
   average_time_across_epochs /= epochs;
+  average_e /= epochs;
 
-  printf("Forward Pass:\n");
-  printf("   ");
-  for (int i = 0; i < 10; i++)
+  if (verbose)
   {
-    printf("%6d |", i);
+    printf("Forward Pass:\n");
+    printf("   ");
+    for (int i = 0; i < 10; i++)
+    {
+      printf("%6d |", i);
+    }
+    printf("\n");
   }
-  printf("\n");
   for (int i = 0; i < 10; i++)
   {
     unsigned char *image;
@@ -129,6 +146,12 @@ int main(int argc, char *argv[])
     // printf("path: %s\n", filename);
     int opened = read_pgm(filename, &image, &width, &height);
 
+    if (!opened)
+    {
+      i--;
+      continue;
+    }
+
     double input[width * height];
     double *output;
     for (int i = 0; i < width * height; i++)
@@ -137,18 +160,37 @@ int main(int argc, char *argv[])
     }
 
     output = forward_pass(model, input, sigmoid);
-    printf("%d: ", i);
-    for (int j = 0; j < 10; j++)
+    if (verbose)
     {
-      printf("%6.2f |", output[j] * 100);
+      printf("%d: ", i);
+      for (int j = 0; j < 10; j++)
+      {
+        printf("%6.2f |", output[j] * 100);
+      }
+      printf("\n");
     }
-    printf("\n");
+    else
+    {
+      for (int j = 0; j < 10; j++)
+      {
+        printf("%.5f,", output[j]);
+      }
+      printf("\n");
+    }
 
     free(output);
     free(image);
   }
 
-  printf("Total time taken: %.5f ms\n", average_time_across_epochs);
+  if (verbose)
+  {
+    printf("Total time taken: %.5f ms\n", average_time_across_epochs);
+  }
+  else
+  {
+    printf("%0.10f\n", average_e);
+    printf("%0.10f\n", average_time_across_epochs);
+  }
 
   return EXIT_SUCCESS;
 }
