@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 {
     Model *model;
 
-    int epochs = 10, images_per_epoch = 100;
+    int epochs = 2, images_per_epoch = 100;
     if (argc > 1) epochs = atoi(argv[1]);
     if (argc > 2) images_per_epoch = atoi(argv[2]);
     if (argc > 3)
