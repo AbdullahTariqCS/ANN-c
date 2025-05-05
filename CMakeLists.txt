@@ -5,7 +5,7 @@ project(ANN-c C)
 include_directories(include)
 
 option(BUILD_TRAIN "Build doodle_train main" OFF)
-option(BUILD_TRAIN_OMP "Build doodle_train_omp main" OFF)
+option(BUILD_TRAIN_OMP "Build doodle_train_omp main" ON)
 option(BUILD_TRAIN_THREADED "Build doodle_train_threaded main" ON)
 option(BUILD_XOR "Build xor_sigmoid main" OFF)
 

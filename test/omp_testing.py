@@ -48,24 +48,72 @@ def parse_doodle_output(output):
     return np_table, error, time_per_image
 
 
-np_table, error, time_per_image = parse_doodle_output(run_doodle_train(50, 1000, 8))
-np.set_printoptions(precision=4, suppress=True)
-import matplotlib.pyplot as plt
+def run_doodle_train1(epoch, image_count_per_epoch, num_thread):
+    start_time = time.time()
 
-def plot_numpy_table(table):
-    num_classes, num_preds = table.shape
+    command = [
+        "./build/doodle_train_threaded",
+        str(epoch),
+        str(image_count_per_epoch),
+        str(num_thread),
+        str(0)
+    ]
 
-    plt.figure(figsize=(10, 6))
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
-    for class_idx in range(num_classes):
-        plt.plot(range(num_preds), table[class_idx], marker='o', label=f'Class {class_idx}')
+    output_lines = []
+    for line in process.stdout:
+        output_lines.append(line)
+    process.wait()
 
-    plt.xlabel('Prediction Index')
-    plt.ylabel('Prediction Value')
-    plt.xticks(range(num_preds))
-    plt.title('Class Predictions')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    output = ''.join(output_lines)
 
-plot_numpy_table(np_table)
+    return output
+
+
+
+import csv
+
+# List of input configurations
+inputs = [
+    (25, 250, 8),
+]
+
+# Array to hold all results
+results = []
+
+for epochs, images, threads in inputs:
+    np_table, error, time_per_image = parse_doodle_output(run_doodle_train(epochs, images, threads))
+
+    print({
+        'epochs': epochs,
+        'images': images,
+        'threads': threads,
+        'error': error,
+        'time_per_image': time_per_image
+    })
+    results.append({
+        'epochs': epochs,
+        'images': images,
+        'threads': threads,
+        'error': error,
+        'time_per_image': time_per_image
+    })
+    np_table, error, time_per_image = parse_doodle_output(run_doodle_train1(epochs, images, threads))
+    print({
+        'epochs': epochs,
+        'images': images,
+        'threads': threads,
+        'error': error,
+        'time_per_image': time_per_image
+    })
+
+
+# Write results to CSV
+with open('results.csv', 'w', newline='') as csvfile:
+    fieldnames = ['epochs', 'images', 'threads', 'error', 'time_per_image']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    writer.writeheader()
+    for row in results:
+        writer.writerow(row)

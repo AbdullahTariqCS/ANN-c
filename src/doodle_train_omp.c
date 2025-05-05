@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   Model *model;
 
   // Initializing the model
-  int epochs = 10, images_per_epoch = 100, num_threads, verbose = 1;
+  int epochs = 10, images_per_epoch = 100, num_threads = 1, verbose = 1;
   double learning_rate = 0.01;
 
   if (argc > 1)
