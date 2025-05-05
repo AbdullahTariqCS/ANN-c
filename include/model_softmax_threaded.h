@@ -112,7 +112,7 @@ double *forward_pass(Model *model, double input[], double activation(double), in
     for (int i = 0; i < model->num_layers; i++)
     {
         Matrix *frontier_t = mat_mul(model->weights[i], frontier, num_threads);
-        mat_add(frontier_t, model->bias[i], 1);
+        mat_add(frontier_t, model->bias[i], 1, num_threads);
         if (i != model->num_layers - 1)
             mat_map(frontier_t, activation, 1);
         else
@@ -170,7 +170,7 @@ double backward_pass(
     {
         frontier[i + 1] = mat_mul(model->weights[i], frontier[i], num_threads);
 
-        mat_add(frontier[i + 1], model->bias[i], 1);
+        mat_add(frontier[i + 1], model->bias[i], 1, num_threads);
         if (i != model->num_layers - 1)
             mat_map(frontier[i + 1], activation, 1);
         else
@@ -194,7 +194,7 @@ double backward_pass(
 
     // Residual Errors
     Matrix *neg_O = mat_scale(O, -1, 0);
-    error[model->num_layers] = mat_add(frontier[model->num_layers], neg_O, 0);
+    error[model->num_layers] = mat_add(frontier[model->num_layers], neg_O, 0, num_threads);
 
     if (DEBUG)
     {
@@ -230,13 +230,13 @@ double backward_pass(
         mat_scale(gradient, model->learning_rate, 1);
 
         Matrix *neg_gradient = mat_scale(gradient, -1, 0);
-        mat_add(model->bias[i], neg_gradient, 1);
+        mat_add(model->bias[i], neg_gradient, 1, num_threads);
 
         Matrix *frontier_t = mat_transpose(frontier[i], 0);
         Matrix *d_weights = mat_mul(neg_gradient, frontier_t, num_threads);
 
         // mat_scale(d_weights, -1, 1);
-        mat_add(model->weights[i], d_weights, 1);
+        mat_add(model->weights[i], d_weights, 1, num_threads);
 
         if (GRADIENT_PRINT)
         {

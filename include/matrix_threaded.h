@@ -18,16 +18,6 @@ typedef struct
   Matrix *A;
   Matrix *B;
   Matrix *O;
-  int block_size;
-  int thread_id;
-  int num_threads;
-} BlockThreadData;
-
-typedef struct
-{
-  Matrix *A;
-  Matrix *B;
-  Matrix *O;
   int start_row;
   int end_row;
 } ThreadData;
@@ -174,6 +164,7 @@ Matrix *mat_mul_parallel(Matrix *A, Matrix *B, int num_threads)
   return O; // returning the resultant matrix
 }
 
+
 Matrix *mat_mul(Matrix *A, Matrix *B, int num_threads)
 {
 
@@ -225,25 +216,84 @@ Matrix *mat_scalar_mul(Matrix *A, Matrix *B, int in_place)
   return O;
 }
 
-Matrix *mat_add(Matrix *A, Matrix *B, int in_place)
-{
-  if (A->rows != B->rows || A->columns != B->columns)
-  {
-    printf("Cannot add (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);
-    return NULL;
+// Matrix *mat_add(Matrix *A, Matrix *B, int in_place, int num_threads)
+// {
+//   if (A->rows != B->rows || A->columns != B->columns)
+//   {
+//     printf("Cannot add (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);
+//     return NULL;
+//   }
+//   Matrix *O;
+//   if (in_place)
+//     O = A;
+//   else
+//     O = mat_init(A->rows, A->columns);
+
+//   for (int i = 0; i < A->rows; i++)
+//     for (int j = 0; j < A->columns; j++)
+//       O->matrix[i][j] = A->matrix[i][j] + B->matrix[i][j];
+
+//   return O;
+// }
+
+
+
+
+void *sum_rows(void *arg) {
+  ThreadData *data = (ThreadData *)arg;
+  for (int i = data->start_row; i < data->end_row; i++) {
+    for (int j = 0; j < data->A->columns; j++) {
+      data->O->matrix[i][j] = data->A->matrix[i][j] + data->B->matrix[i][j];
+    }
   }
+  return NULL;
+}
+
+Matrix *mat_add(Matrix *A, Matrix *B, int in_place, int num_threads) {
   Matrix *O;
   if (in_place)
     O = A;
   else
-    O = mat_init(A->rows, A->columns);
+    O = mat_init(A->rows, A->columns); // Assumes you have this function
 
-  for (int i = 0; i < A->rows; i++)
-    for (int j = 0; j < A->columns; j++)
-      O->matrix[i][j] = A->matrix[i][j] + B->matrix[i][j];
+  pthread_t threads[num_threads];
+  ThreadData thread_data[num_threads];
+
+  int rows_per_thread = A->rows / num_threads;
+  int extra_rows = A->rows % num_threads;
+
+  int current_row = 0;
+  for (int i = 0; i < num_threads; i++) {
+    int rows = rows_per_thread + (i < extra_rows ? 1 : 0);
+    thread_data[i] = (ThreadData){
+      .A = A,
+      .B = B,
+      .O = O,
+      .start_row = current_row,
+      .end_row = current_row + rows
+    };
+    pthread_create(&threads[i], NULL, sum_rows, &thread_data[i]);
+    current_row += rows;
+  }
+
+  for (int i = 0; i < num_threads; i++)
+    pthread_join(threads[i], NULL);
 
   return O;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Matrix *mat_map(Matrix *A, double f(double), int in_place)
 {
@@ -359,20 +409,20 @@ void mat_rand_xavier(Matrix *A)
   }
 }
 
-Matrix *mat_sum(Matrix *A, Matrix *B, int in_place)
-{
-  Matrix *O;
-  if (in_place)
-    O = A;
-  else
-    O = mat_init(A->rows, A->columns);
+// Matrix *mat_sum(Matrix *A, Matrix *B, int in_place, int num_threads)
+// {
+//   Matrix *O;
+//   if (in_place)
+//     O = A;
+//   else
+//     O = mat_init(A->rows, A->columns);
 
-  for (int i = 0; i < A->rows; i++)
-    for (int j = 0; j < A->columns; j++)
-      O->matrix[i][j] = A->matrix[i][j] + B->matrix[i][j];
+//   for (int i = 0; i < A->rows; i++)
+//     for (int j = 0; j < A->columns; j++)
+//       O->matrix[i][j] = A->matrix[i][j] + B->matrix[i][j];
 
-  return O;
-}
+//   return O;
+// }
 
 Matrix *mat_scale(Matrix *A, double n, int in_place)
 {
@@ -409,6 +459,7 @@ Matrix *mat_add_scalar(Matrix *A, double n, int in_place)
   }
   return O;
 }
+
 void mat_normalize(Matrix *A)
 {
   int N = A->rows * A->columns;

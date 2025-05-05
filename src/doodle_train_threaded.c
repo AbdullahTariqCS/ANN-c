@@ -29,14 +29,12 @@ int main(int argc, char *argv[])
   if (argc > 4)
     verbose = atoi(argv[4]);
   if (argc > 5)
-    learning_rate = atoi(argv[5]);
+    learning_rate = atof(argv[5]);
 
   int num_layers = 4;
   int layers[] = {576, 320, 64, 10};
   model = initialize_model(num_layers - 1, layers);
   model->learning_rate = learning_rate;
-
-  // Setting number of threads
 
   if (verbose)
   {
