@@ -6,17 +6,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <mpi.h>
 
 char PATH_TO_DATASET[] = "./dataset/";
 
 int main(int argc, char *argv[])
 {
-    MPI_Init(NULL, NULL);
     
     Model *model;
 
-    int epochs = 2, images_per_epoch = 100;
+    int epochs = 10, images_per_epoch = 100;
     if (argc > 1) epochs = atoi(argv[1]);
     if (argc > 2) images_per_epoch = atoi(argv[2]);
     if (argc > 3)

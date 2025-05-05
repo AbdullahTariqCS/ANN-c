@@ -1,14 +1,34 @@
 #pragma once
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <mpi.h>
+#include <pthread.h>
+#include <unistd.h>
 
 typedef struct Matrix{
     int rows; 
     int columns; 
     double** matrix; 
 } Matrix;
+
+typedef struct {
+    Matrix* A;
+    Matrix* B;
+    Matrix* O;
+    int block_size;
+    int thread_id;
+    int num_threads;
+} BlockThreadData;
+
+typedef struct {
+    Matrix* A;
+    Matrix* B;
+    Matrix* O;
+    int start_row;
+    int end_row;
+} ThreadData;
+
 
 Matrix* mat_init(int rows, int columns)
 {
@@ -83,6 +103,63 @@ Matrix* mat_read(FILE* file)
     return A;
 }
 
+
+void* mat_mul_thread(void* arg) {
+
+    ThreadData* data = (ThreadData*)arg;
+    
+    for (int i = data->start_row; i < data->end_row; i++) {
+        for (int j = 0; j < data->B->columns; j++) {
+            double sum = 0.0;
+            for (int k = 0; k < data->A->columns; k++) {
+                sum += data->A->matrix[i][k] * data->B->matrix[k][j];
+            }
+            data->O->matrix[i][j] = sum;
+        }
+    }
+    
+    pthread_exit(NULL);
+}
+
+Matrix* mat_mul_parallel(Matrix* A, Matrix* B, int num_threads) {
+    if (A->columns != B->rows) {
+        printf("Cannot Multiply (%d, %d) with (%d, %d)\n", 
+               A->rows, A->columns, B->rows, B->columns);
+        return NULL;
+    }
+
+    // printf("\n(child maker) Number of threads: %d", num_threads);
+
+    Matrix* O = mat_init(A->rows, B->columns);
+    pthread_t threads[num_threads];
+    ThreadData thread_data[num_threads];
+
+    int rows_per_thread = A->rows / num_threads;
+    int extra_rows = A->rows % num_threads;
+    int current_row = 0;
+
+    // Create threads
+    for (int i = 0; i < num_threads; i++) {
+        thread_data[i].A = A;
+        thread_data[i].B = B;
+        thread_data[i].O = O;
+        thread_data[i].start_row = current_row;
+        
+        // Distribute extra rows among first threads
+        thread_data[i].end_row = current_row + rows_per_thread + (i < extra_rows ? 1 : 0);
+        current_row = thread_data[i].end_row;
+        
+        pthread_create(&threads[i], NULL, mat_mul_thread, &thread_data[i]);
+    }
+
+    // Wait for all threads to complete
+    for (int i = 0; i < num_threads; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    return O;
+}
+
 // Matrix* mat_mul(Matrix* A, Matrix* B)
 // {
 //     if (A->columns != B->rows)
@@ -107,89 +184,38 @@ Matrix* mat_read(FILE* file)
 
 
 Matrix* mat_mul(Matrix* A, Matrix* B) {
-
-    printf("mat mul called\n");
-
-    MPI_Comm comm = MPI_COMM_WORLD;
-
-    int rank, size;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
-
-    if (A->columns != B->rows) {
-        if (rank == 0) {
-            printf("Cannot Multiply (%d, %d) with (%d, %d)\n", 
-                   A->rows, A->columns, B->rows, B->columns);
-        }
-        return NULL;
-    }
-
-    // Only root process initializes the full matrices
-    Matrix* O = NULL;
-    if (rank == 0) {
-        O = mat_init(A->rows, B->columns);
-    }
-
-    // Broadcast matrix B to all processes (entire matrix)
-    MPI_Bcast(&(B->rows), 1, MPI_INT, 0, comm);
-    MPI_Bcast(&(B->columns), 1, MPI_INT, 0, comm);
-
-    if (rank != 0) {
-        B = mat_init(B->rows, B->columns);
-    }
-
-    for (int i = 0; i < B->rows; i++) {
-        MPI_Bcast(B->matrix[i], B->columns, MPI_DOUBLE, 0, comm);
-    }
-
-    // Distribute rows of A among processes
-    int rows_per_proc = A->rows / size;
-    int extra_rows = A->rows % size;
-
-    int local_rows = rows_per_proc + (rank < extra_rows ? 1 : 0);
-    Matrix* local_A = mat_init(local_rows, A->columns);
-    Matrix* local_O = mat_init(local_rows, B->columns);
-
-    // Scatter rows of A
-    int* sendcounts = malloc(size * sizeof(int));
-    int* displs = malloc(size * sizeof(int));
     
-    for (int i = 0; i < size; i++) {
-        sendcounts[i] = (rows_per_proc + (i < extra_rows ? 1 : 0)) * A->columns;
-        displs[i] = (i == 0) ? 0 : displs[i-1] + sendcounts[i-1];
-    }
+    if (A->columns != B->rows)
+    {
+        printf("\nCannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);         
 
-    MPI_Scatterv(A->matrix[0], sendcounts, displs, MPI_DOUBLE,
-                 local_A->matrix[0], local_rows * A->columns, MPI_DOUBLE,
-                 0, comm);
-
-    // Local computation
-    for (int i = 0; i < local_rows; i++) {
-        for (int j = 0; j < B->columns; j++) {
-            local_O->matrix[i][j] = 0.0;
-            for (int k = 0; k < A->columns; k++) {
-                local_O->matrix[i][j] += local_A->matrix[i][k] * B->matrix[k][j];
-            }
-        }
-    }
-
-    // Gather results
-    MPI_Gatherv(local_O->matrix[0], local_rows * B->columns, MPI_DOUBLE,
-                O ? O->matrix[0] : NULL, sendcounts, displs, MPI_DOUBLE,
-                0, comm);
-
-    // Cleanup
-    mat_free(local_A, 0);
-    mat_free(local_O, 0);
-    free(sendcounts);
-    free(displs);
-
-    if (rank != 0) {
-        mat_free(B, 0);
+        exit(1);
         return NULL;
     }
+    
+    // Get number of available CPU cores
+    int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
 
-    return O;
+    // if (!(A->rows % num_threads))
+    // {
+    //     // printf("\nThe rows are divisible!!! %d", A->rows);
+    // }
+    
+
+    // printf("\n(mat mul) Number of threads used: %d", num_threads);
+
+    Matrix* C = mat_mul_parallel(A, B, num_threads);
+
+    if (C) {
+        // mat_print(C);
+        // mat_free(C, 0);
+    }
+    
+    // mat_free(A, 0);
+    // mat_free(B, 0);
+    
+    return C;
+
 }
 
 
