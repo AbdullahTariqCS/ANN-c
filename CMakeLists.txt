@@ -60,8 +60,8 @@ if(BUILD_TRAIN_THREADED)
 
     target_link_libraries(doodle_train_threaded m OpenMP::OpenMP_C Threads::Threads)
 
-    # add_custom_command(TARGET doodle_train_threaded POST_BUILD
-    #     COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
-    #     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/datasets ${CMAKE_BINARY_DIR}/datasets
-    # )
+    add_custom_command(TARGET doodle_train_threaded POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/datasets ${CMAKE_BINARY_DIR}/datasets
+    )
 endif()
