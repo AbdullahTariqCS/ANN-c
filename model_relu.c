@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "matrix_threaded.c"
+#include "matrix.c"
 #include "util.c"
 #include <time.h>
 

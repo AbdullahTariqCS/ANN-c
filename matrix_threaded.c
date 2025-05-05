@@ -109,24 +109,33 @@ void* mat_mul_thread(void* arg) {
     ThreadData* data = (ThreadData*)arg;
     
     for (int i = data->start_row; i < data->end_row; i++) {
+
         for (int j = 0; j < data->B->columns; j++) {
+
             double sum = 0.0;
+
             for (int k = 0; k < data->A->columns; k++) {
+
                 sum += data->A->matrix[i][k] * data->B->matrix[k][j];
+
             }
+
             data->O->matrix[i][j] = sum;
+
         }
+
     }
     
     pthread_exit(NULL);
 }
 
+
 Matrix* mat_mul_parallel(Matrix* A, Matrix* B, int num_threads) {
     if (A->columns != B->rows) {
-        printf("Cannot Multiply (%d, %d) with (%d, %d)\n", 
-               A->rows, A->columns, B->rows, B->columns);
+        printf("Cannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);
         return NULL;
     }
+
 
     // printf("\n(child maker) Number of threads: %d", num_threads);
 
@@ -138,49 +147,32 @@ Matrix* mat_mul_parallel(Matrix* A, Matrix* B, int num_threads) {
     int extra_rows = A->rows % num_threads;
     int current_row = 0;
 
-    // Create threads
+    // Creating and provisioning threads
     for (int i = 0; i < num_threads; i++) {
+        
         thread_data[i].A = A;
         thread_data[i].B = B;
         thread_data[i].O = O;
         thread_data[i].start_row = current_row;
         
-        // Distribute extra rows among first threads
+        // Distributing extra rows among first threads
         thread_data[i].end_row = current_row + rows_per_thread + (i < extra_rows ? 1 : 0);
+
         current_row = thread_data[i].end_row;
         
-        pthread_create(&threads[i], NULL, mat_mul_thread, &thread_data[i]);
+        pthread_create(&threads[i], NULL, mat_mul_thread, &thread_data[i]);  // creating threads
+
     }
 
-    // Wait for all threads to complete
+    // Waiting for all threads to complete
     for (int i = 0; i < num_threads; i++) {
+
         pthread_join(threads[i], NULL);
+    
     }
 
-    return O;
+    return O;  // returning the resultant matrix
 }
-
-// Matrix* mat_mul(Matrix* A, Matrix* B)
-// {
-//     if (A->columns != B->rows)
-//     {
-//         printf("Cannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);         
-
-//         return NULL; 
-//     }
-//     Matrix* O = mat_init(A->rows, B->columns);
-
-//     for(int i = 0; i < A->rows; i++)
-//     {
-//         for(int j = 0; j < B->columns; j++)
-//         {
-//             O->matrix[i][j] = 0;
-//             for(int k=0; k<A->columns; k++)
-//                 O->matrix[i][j] += A->matrix[i][k] * B->matrix[k][j];
-//         }
-//     }
-//     return O;
-// }
 
 
 Matrix* mat_mul(Matrix* A, Matrix* B) {
@@ -195,24 +187,20 @@ Matrix* mat_mul(Matrix* A, Matrix* B) {
     
     // Get number of available CPU cores
     int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-
-    // if (!(A->rows % num_threads))
-    // {
-    //     // printf("\nThe rows are divisible!!! %d", A->rows);
-    // }
     
-
-    // printf("\n(mat mul) Number of threads used: %d", num_threads);
+    // If the rows are not divisible we are sending the extra rows for computations on the threads first then we allocate the rest 2022291
+    // e.g for 10 threads
+    // Thread 0: [row0][row1][row2][row3] 
+    // Thread 1: [row4][row5][row6]
+    // Thread 2: [row7][row8][row9]
+    
+    // printf("\n(mat mul) Number of threads used: %d", num_threads);   // If you are curious
 
     Matrix* C = mat_mul_parallel(A, B, num_threads);
 
     if (C) {
-        // mat_print(C);
-        // mat_free(C, 0);
+        // mat_print(C);    // In case someone wants to print
     }
-    
-    // mat_free(A, 0);
-    // mat_free(B, 0);
     
     return C;
 
