@@ -83,27 +83,115 @@ Matrix* mat_read(FILE* file)
     return A;
 }
 
-Matrix* mat_mul(Matrix* A, Matrix* B)
-{
-    if (A->columns != B->rows)
-    {
-        printf("Cannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);         
+// Matrix* mat_mul(Matrix* A, Matrix* B)
+// {
+//     if (A->columns != B->rows)
+//     {
+//         printf("Cannot Multiply (%d, %d) with (%d, %d)\n", A->rows, A->columns, B->rows, B->columns);         
 
-        return NULL; 
+//         return NULL; 
+//     }
+//     Matrix* O = mat_init(A->rows, B->columns);
+
+//     for(int i = 0; i < A->rows; i++)
+//     {
+//         for(int j = 0; j < B->columns; j++)
+//         {
+//             O->matrix[i][j] = 0;
+//             for(int k=0; k<A->columns; k++)
+//                 O->matrix[i][j] += A->matrix[i][k] * B->matrix[k][j];
+//         }
+//     }
+//     return O;
+// }
+
+
+Matrix* mat_mul(Matrix* A, Matrix* B) {
+
+    printf("mat mul called\n");
+
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    int rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+
+    if (A->columns != B->rows) {
+        if (rank == 0) {
+            printf("Cannot Multiply (%d, %d) with (%d, %d)\n", 
+                   A->rows, A->columns, B->rows, B->columns);
+        }
+        return NULL;
     }
-    Matrix* O = mat_init(A->rows, B->columns);
 
-    for(int i = 0; i < A->rows; i++)
-    {
-        for(int j = 0; j < B->columns; j++)
-        {
-            O->matrix[i][j] = 0;
-            for(int k=0; k<A->columns; k++)
-                O->matrix[i][j] += A->matrix[i][k] * B->matrix[k][j];
+    // Only root process initializes the full matrices
+    Matrix* O = NULL;
+    if (rank == 0) {
+        O = mat_init(A->rows, B->columns);
+    }
+
+    // Broadcast matrix B to all processes (entire matrix)
+    MPI_Bcast(&(B->rows), 1, MPI_INT, 0, comm);
+    MPI_Bcast(&(B->columns), 1, MPI_INT, 0, comm);
+
+    if (rank != 0) {
+        B = mat_init(B->rows, B->columns);
+    }
+
+    for (int i = 0; i < B->rows; i++) {
+        MPI_Bcast(B->matrix[i], B->columns, MPI_DOUBLE, 0, comm);
+    }
+
+    // Distribute rows of A among processes
+    int rows_per_proc = A->rows / size;
+    int extra_rows = A->rows % size;
+
+    int local_rows = rows_per_proc + (rank < extra_rows ? 1 : 0);
+    Matrix* local_A = mat_init(local_rows, A->columns);
+    Matrix* local_O = mat_init(local_rows, B->columns);
+
+    // Scatter rows of A
+    int* sendcounts = malloc(size * sizeof(int));
+    int* displs = malloc(size * sizeof(int));
+    
+    for (int i = 0; i < size; i++) {
+        sendcounts[i] = (rows_per_proc + (i < extra_rows ? 1 : 0)) * A->columns;
+        displs[i] = (i == 0) ? 0 : displs[i-1] + sendcounts[i-1];
+    }
+
+    MPI_Scatterv(A->matrix[0], sendcounts, displs, MPI_DOUBLE,
+                 local_A->matrix[0], local_rows * A->columns, MPI_DOUBLE,
+                 0, comm);
+
+    // Local computation
+    for (int i = 0; i < local_rows; i++) {
+        for (int j = 0; j < B->columns; j++) {
+            local_O->matrix[i][j] = 0.0;
+            for (int k = 0; k < A->columns; k++) {
+                local_O->matrix[i][j] += local_A->matrix[i][k] * B->matrix[k][j];
+            }
         }
     }
+
+    // Gather results
+    MPI_Gatherv(local_O->matrix[0], local_rows * B->columns, MPI_DOUBLE,
+                O ? O->matrix[0] : NULL, sendcounts, displs, MPI_DOUBLE,
+                0, comm);
+
+    // Cleanup
+    mat_free(local_A, 0);
+    mat_free(local_O, 0);
+    free(sendcounts);
+    free(displs);
+
+    if (rank != 0) {
+        mat_free(B, 0);
+        return NULL;
+    }
+
     return O;
 }
+
 
 Matrix* mat_scalar_mul(Matrix* A, Matrix* B, int in_place)
 {

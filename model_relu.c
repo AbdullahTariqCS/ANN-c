@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "matrix.c"
+#include "matrix_mpi.c"
 #include "util.c"
 #include <time.h>
 

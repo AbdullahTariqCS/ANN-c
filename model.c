@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "matrix.c"
+#include "matrix_mpi.c"
 // #include "util/sigmoid.c" 
 #include "util/array.c"
 #include <time.h>

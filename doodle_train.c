@@ -6,11 +6,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <mpi.h>
 
 char PATH_TO_DATASET[] = "./dataset/";
 
 int main(int argc, char *argv[])
 {
+    MPI_Init(NULL, NULL);
+    
     Model *model;
 
     int epochs = 2, images_per_epoch = 100;
