@@ -1,4 +1,4 @@
-#include <model_softmax_omp.h>
+#include <model_softmax_threaded.h>
 #include <time.h>
 #include <dir.h>
 #include <stdio.h>
@@ -36,11 +36,11 @@ int main(int argc, char *argv[])
   model = initialize_model(num_layers - 1, layers);
   model->learning_rate = learning_rate;
 
-  omp_set_num_threads(num_threads);
+  // Setting number of threads
 
   if (verbose)
   {
-    printf("Setting OpenMP threads to %d\n", num_threads);
+    printf("Setting threads to %d\n", num_threads);
     printf("Model details:\n");
     printf("\tLayers (%d): ", model->num_layers + 1);
     for (int i = 0; i < model->num_layers + 1; i++)
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
       for (int k = 0; k < 10; k++)
         output[k] = (double)(k == class);
 
-      e += backward_pass(model, input, output, sigmoid, dsigmoid);
+      e += backward_pass(model, input, output, sigmoid, dsigmoid, num_threads);
 
       free(image);
     }
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
       input[i] = (double)image[i] / 255.0;
     }
 
-    output = forward_pass(model, input, sigmoid);
+    output = forward_pass(model, input, sigmoid, num_threads);
     if (verbose)
     {
       printf("%d: ", i);

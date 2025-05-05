@@ -3,10 +3,10 @@ cmake_minimum_required(VERSION 3.10)
 project(ANN-c C)
 
 include_directories(include)
-find_package(OpenMP REQUIRED)
 
-option(BUILD_TRAIN "Build doodle_train main" ON)
+option(BUILD_TRAIN "Build doodle_train main" OFF)
 option(BUILD_TRAIN_OMP "Build doodle_train_omp main" ON)
+option(BUILD_TRAIN_THREADED "Build doodle_train_threaded main" ON)
 option(BUILD_XOR "Build xor_sigmoid main" OFF)
 
 if(BUILD_TRAIN)
@@ -14,7 +14,7 @@ if(BUILD_TRAIN)
         src/doodle_train.c
     )
 
-    target_link_libraries(doodle_train m OpenMP::OpenMP_C)
+    target_link_libraries(doodle_train m)
 
     add_custom_command(TARGET doodle_train POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
@@ -27,7 +27,7 @@ if(BUILD_XOR)
         src/xor_sigmoid.c
     )
 
-    target_link_libraries(xor_main m OpenMP::OpenMP_C)
+    target_link_libraries(xor_main m)
 
     add_custom_command(TARGET xor_main POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
@@ -36,6 +36,8 @@ if(BUILD_XOR)
 endif()
 
 if(BUILD_TRAIN_OMP)
+    find_package(OpenMP REQUIRED)
+
     add_executable(doodle_train_omp 
         src/doodle_train_omp.c
     )
@@ -43,6 +45,22 @@ if(BUILD_TRAIN_OMP)
     target_link_libraries(doodle_train_omp m OpenMP::OpenMP_C)
 
     add_custom_command(TARGET doodle_train_omp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/datasets ${CMAKE_BINARY_DIR}/datasets
+    )
+endif()
+
+if(BUILD_TRAIN_THREADED)
+    find_package(OpenMP REQUIRED)
+    find_package(Threads REQUIRED)
+
+    add_executable(doodle_train_threaded
+        src/doodle_train_threaded.c
+    )
+
+    target_link_libraries(doodle_train_threaded m OpenMP::OpenMP_C Threads::Threads)
+
+    add_custom_command(TARGET doodle_train_threaded POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/datasets
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/datasets ${CMAKE_BINARY_DIR}/datasets
     )
